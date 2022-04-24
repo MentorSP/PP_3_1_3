@@ -12,11 +12,15 @@ import ru.kata.spring.boot_security.demo.models.User;
 import ru.kata.spring.boot_security.demo.repository.RoleRepository;
 import ru.kata.spring.boot_security.demo.repository.UserRepository;
 
+import javax.persistence.EntityManager;
+import javax.persistence.PersistenceContext;
 import java.util.*;
 
 @Service
 @Transactional
 public class UserService implements UserDetailsService {
+    @PersistenceContext
+    private EntityManager entityManager;
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
     private final BCryptPasswordEncoder bCryptPasswordEncoder;
@@ -45,29 +49,30 @@ public class UserService implements UserDetailsService {
         return userFromDB.orElse(new User());
     }
 
-    public void save(User user) {
-        User userBD = userRepository.findByUsername(user.getUsername());
-        if (userBD != null) {
-            return;
+    public List<User> getAllUsers() {
+        return userRepository.findAll();
+    }
+
+    public List<Role> getAllRoles() {
+        return roleRepository.findAll();
+    }
+
+    public boolean save(User user) {
+        if (userRepository.findByUsername(user.getUsername()) != null) {
+            throw new IllegalArgumentException(String.format("User with username %s already exists in database", user.getUsername()));
         }
-        Role role = new Role();
-        role.setName("ROLE_USER");
-        user.setRoles(Collections.singleton(role));
-        user.setPassword((bCryptPasswordEncoder.encode(user.getPassword())));
+        user.setPassword(bCryptPasswordEncoder.encode(user.getPassword()));
         userRepository.save(user);
+        return true;
     }
     public void delete(Long id) {
         userRepository.deleteById(id);
     }
 
-    public List<User> getAllUser() {
-        return userRepository.findAll();
-    }
-
-
-    public void  update(User user) {
-        userRepository.update(user.getUsername(), bCryptPasswordEncoder.encode(user.getPassword()), user.getId());
-
+    public boolean update(User user) {
+        user.setPassword(bCryptPasswordEncoder.encode(user.getPassword()));
+        userRepository.save(user);
+        return true;
     }
 
     public User findByName(String username) {
